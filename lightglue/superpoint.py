@@ -113,7 +113,7 @@ class SuperPoint(Extractor):
     }
 
     preprocess_conf = {
-        "resize": 1024,
+        # "resize": 1024,
     }
 
     required_data_keys = ["image"]
@@ -175,6 +175,7 @@ class SuperPoint(Extractor):
         b, _, h, w = scores.shape
         scores = scores.permute(0, 2, 3, 1).reshape(b, h, w, 8, 8)
         scores = scores.permute(0, 1, 3, 2, 4).reshape(b, h * 8, w * 8)
+        score_map = scores.clone()
         scores = simple_nms(scores, self.conf.nms_radius)
 
         # Discard keypoints near the image borders
@@ -184,6 +185,10 @@ class SuperPoint(Extractor):
             scores[:, :, :pad] = -1
             scores[:, -pad:] = -1
             scores[:, :, -pad:] = -1
+            score_map[:, :pad] = -1
+            score_map[:, :, :pad] = -1
+            score_map[:, -pad:] = -1
+            score_map[:, :, -pad:] = -1
 
         # Extract keypoints
         best_kp = torch.where(scores > self.conf.detection_threshold)
@@ -224,4 +229,5 @@ class SuperPoint(Extractor):
             "keypoints": torch.stack(keypoints, 0),
             "keypoint_scores": torch.stack(scores, 0),
             "descriptors": torch.stack(descriptors, 0).transpose(-1, -2).contiguous(),
+            "score_map": score_map,
         }
